@@ -27,6 +27,7 @@ import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.widget.ImageView;
 
@@ -107,6 +108,7 @@ public class CropImageView extends ImageView {
 
     // Mode indicating how/whether to show the guidelines; must be one of GUIDELINES_OFF, GUIDELINES_ON_TOUCH, GUIDELINES_ON.
     private int mGuidelinesMode = 1;
+    private int mDegreesRotated = 0;
 
     // Constructors ////////////////////////////////////////////////////////////////////////////////
 
@@ -247,6 +249,31 @@ public class CropImageView extends ImageView {
         if (mFixAspectRatio) {
             requestLayout(); // Request measure/layout to be run again.
         }
+    }
+
+    /**
+     * Rotates image by the specified number of degrees clockwise. Cycles from 0 to 360 degrees.
+     *
+     * @param degrees Integer specifying the number of degrees to rotate.
+     */
+    public void rotateImage(int degrees) {
+        final Drawable drawable = getDrawable();
+        if (drawable == null || !(drawable instanceof BitmapDrawable)) {
+            Log.e(TAG, "bad drawable");
+            return;
+        }
+
+        // Get the original bitmap object.
+        final Bitmap originalBitmap = ((BitmapDrawable) drawable).getBitmap();
+
+        final Matrix matrix = new Matrix();
+        matrix.postRotate(degrees);
+        final Bitmap rotatedBmp = Bitmap.createBitmap(originalBitmap, 0, 0, originalBitmap.getWidth(),
+                originalBitmap.getHeight(), matrix, true);
+//        originalBitmap.recycle();//TODO: do we need a recycle here?
+        setImageBitmap(rotatedBmp);
+        mDegreesRotated += degrees;
+        mDegreesRotated = mDegreesRotated % 360;
     }
 
     /**
