@@ -252,35 +252,12 @@ public class CropImageView extends ImageView {
     }
 
     /**
-     * Rotates image by the specified number of degrees clockwise. Cycles from 0 to 360 degrees.
-     *
-     * @param degrees Integer specifying the number of degrees to rotate.
-     */
-    public void rotateImage(int degrees) {
-        final Drawable drawable = getDrawable();
-        if (drawable == null || !(drawable instanceof BitmapDrawable)) {
-            Log.e(TAG, "bad drawable");
-            return;
-        }
-
-        // Get the original bitmap object.
-        final Bitmap originalBitmap = ((BitmapDrawable) drawable).getBitmap();
-
-        final Matrix matrix = new Matrix();
-        matrix.postRotate(degrees);
-        final Bitmap rotatedBmp = Bitmap.createBitmap(originalBitmap, 0, 0, originalBitmap.getWidth(),
-                originalBitmap.getHeight(), matrix, true);
-//        originalBitmap.recycle();//TODO: do we need a recycle here?
-        setImageBitmap(rotatedBmp);
-        mDegreesRotated += degrees;
-        mDegreesRotated = mDegreesRotated % 360;
-    }
-
-    /**
      * Gets the cropped image based on the current crop window.
      *
      * @return a new Bitmap representing the cropped image
      */
+    @Nullable
+    @SuppressWarnings("unused")
     public Bitmap getCroppedImage() {
 
         // Implementation reference: http://stackoverflow.com/a/26930938/1068656
@@ -288,6 +265,29 @@ public class CropImageView extends ImageView {
         final Drawable drawable = getDrawable();
         if (drawable == null || !(drawable instanceof BitmapDrawable)) {
             return null;
+        }
+
+        RectF rect = getActualCropRect();
+        if (rect.width() == 0 || rect.height() == 0) {
+            return null;
+        }
+
+        final Bitmap originalBitmap = ((BitmapDrawable) drawable).getBitmap();
+        return Bitmap.createBitmap(originalBitmap,
+                                   (int) rect.left,
+                                   (int) rect.top,
+                                   (int) rect.width(),
+                                   (int) rect.height());
+    }
+
+    /**
+     * method written by shaubert
+     * @see <a href="https://github.com/shaubert/cropper/">https://github.com/shaubert/cropper/</a>
+     */
+    public RectF getActualCropRect() {
+        final Drawable drawable = getDrawable();
+        if (drawable == null || !(drawable instanceof BitmapDrawable)) {
+            return new RectF();
         }
 
         // Get image matrix values and place them in an array.
@@ -300,28 +300,19 @@ public class CropImageView extends ImageView {
         final float transX = matrixValues[Matrix.MTRANS_X];
         final float transY = matrixValues[Matrix.MTRANS_Y];
 
-        // Ensure that the left and top edges are not outside of the ImageView bounds.
-        final float bitmapLeft = (transX < 0) ? Math.abs(transX) : 0;
-        final float bitmapTop = (transY < 0) ? Math.abs(transY) : 0;
+        // Calculate the top-left corner of the crop window relative to the ~original~ bitmap size.
+        final float cropX = (-transX + Edge.LEFT.getCoordinate()) / scaleX;
+        final float cropY = (-transY + Edge.TOP.getCoordinate()) / scaleY;
 
         // Get the original bitmap object.
         final Bitmap originalBitmap = ((BitmapDrawable) drawable).getBitmap();
-
-        // Calculate the top-left corner of the crop window relative to the ~original~ bitmap size.
-        final float cropX = (bitmapLeft + Edge.LEFT.getCoordinate()) / scaleX;
-        final float cropY = (bitmapTop + Edge.TOP.getCoordinate()) / scaleY;
 
         // Calculate the crop window size relative to the ~original~ bitmap size.
         // Make sure the right and bottom edges are not outside the ImageView bounds (this is just to address rounding discrepancies).
         final float cropWidth = Math.min(Edge.getWidth() / scaleX, originalBitmap.getWidth() - cropX);
         final float cropHeight = Math.min(Edge.getHeight() / scaleY, originalBitmap.getHeight() - cropY);
 
-        // Crop the subset from the original Bitmap.
-        return Bitmap.createBitmap(originalBitmap,
-                                   (int) cropX,
-                                   (int) cropY,
-                                   (int) cropWidth,
-                                   (int) cropHeight);
+        return new RectF(cropX, cropY, cropX + cropWidth, cropY + cropHeight);
     }
 
     // Private Methods /////////////////////////////////////////////////////////////////////////////
@@ -582,4 +573,29 @@ public class CropImageView extends ImageView {
         invalidate();
     }
 
+    /**
+     * Rotates image by the specified number of degrees clockwise. Cycles from 0 to 360 degrees.
+     *
+     * @param degrees Integer specifying the number of degrees to rotate.
+     */
+    @SuppressWarnings("unused")
+    public void rotateImage(int degrees) {
+        final Drawable drawable = getDrawable();
+        if (drawable == null || !(drawable instanceof BitmapDrawable)) {
+            Log.e(TAG, "bad drawable");
+            return;
+        }
+
+        // Get the original bitmap object.
+        final Bitmap originalBitmap = ((BitmapDrawable) drawable).getBitmap();
+
+        final Matrix matrix = new Matrix();
+        matrix.postRotate(degrees);
+        final Bitmap rotatedBmp = Bitmap.createBitmap(originalBitmap, 0, 0, originalBitmap.getWidth(),
+                originalBitmap.getHeight(), matrix, true);
+//        originalBitmap.recycle();//TODO: do we need a recycle here?
+        setImageBitmap(rotatedBmp);
+        mDegreesRotated += degrees;
+        mDegreesRotated = mDegreesRotated % 360;
+    }
 }
